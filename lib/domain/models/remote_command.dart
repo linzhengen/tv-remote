@@ -1,0 +1,124 @@
+enum CommandCategory {
+  power,
+  volume,
+  channel,
+  navigation,
+  media,
+  numbers,
+  input,
+  menu,
+  color,
+  other,
+}
+
+enum RemoteCommand {
+  // Power
+  power(commandCategory: CommandCategory.power),
+  // Volume
+  volumeUp(commandCategory: CommandCategory.volume),
+  volumeDown(commandCategory: CommandCategory.volume),
+  mute(commandCategory: CommandCategory.volume),
+  // Channel
+  channelUp(commandCategory: CommandCategory.channel),
+  channelDown(commandCategory: CommandCategory.channel),
+  // Navigation (D-Pad)
+  up(commandCategory: CommandCategory.navigation),
+  down(commandCategory: CommandCategory.navigation),
+  left(commandCategory: CommandCategory.navigation),
+  right(commandCategory: CommandCategory.navigation),
+  ok(commandCategory: CommandCategory.navigation),
+  back(commandCategory: CommandCategory.navigation),
+  home(commandCategory: CommandCategory.navigation),
+  // Media
+  play(commandCategory: CommandCategory.media),
+  pause(commandCategory: CommandCategory.media),
+  stop(commandCategory: CommandCategory.media),
+  rewind(commandCategory: CommandCategory.media),
+  fastForward(commandCategory: CommandCategory.media),
+  skipNext(commandCategory: CommandCategory.media),
+  skipPrev(commandCategory: CommandCategory.media),
+  record(commandCategory: CommandCategory.media),
+  // Numbers
+  num0(commandCategory: CommandCategory.numbers),
+  num1(commandCategory: CommandCategory.numbers),
+  num2(commandCategory: CommandCategory.numbers),
+  num3(commandCategory: CommandCategory.numbers),
+  num4(commandCategory: CommandCategory.numbers),
+  num5(commandCategory: CommandCategory.numbers),
+  num6(commandCategory: CommandCategory.numbers),
+  num7(commandCategory: CommandCategory.numbers),
+  num8(commandCategory: CommandCategory.numbers),
+  num9(commandCategory: CommandCategory.numbers),
+  // Input
+  changeInput(commandCategory: CommandCategory.input),
+  // Menu
+  menu(commandCategory: CommandCategory.menu),
+  guide(commandCategory: CommandCategory.menu),
+  info(commandCategory: CommandCategory.menu),
+  // Color buttons
+  red(commandCategory: CommandCategory.color),
+  green(commandCategory: CommandCategory.color),
+  blue(commandCategory: CommandCategory.color),
+  yellow(commandCategory: CommandCategory.color),
+  // Other
+  subtitles(commandCategory: CommandCategory.other),
+  aspect(commandCategory: CommandCategory.other),
+  internet(commandCategory: CommandCategory.other),
+  apps(commandCategory: CommandCategory.other),
+  vieraLink(commandCategory: CommandCategory.other),
+  lastView(commandCategory: CommandCategory.other),
+  ;
+
+  final CommandCategory commandCategory;
+  const RemoteCommand({required this.commandCategory});
+
+  String get label {
+    return switch (this) {
+      RemoteCommand.power => 'Power',
+      RemoteCommand.volumeUp => 'Vol+',
+      RemoteCommand.volumeDown => 'Vol-',
+      RemoteCommand.mute => 'Mute',
+      RemoteCommand.channelUp => 'CH+',
+      RemoteCommand.channelDown => 'CH-',
+      RemoteCommand.up => 'Up',
+      RemoteCommand.down => 'Down',
+      RemoteCommand.left => 'Left',
+      RemoteCommand.right => 'Right',
+      RemoteCommand.ok => 'OK',
+      RemoteCommand.back => 'Back',
+      RemoteCommand.home => 'Home',
+      RemoteCommand.play => 'Play',
+      RemoteCommand.pause => 'Pause',
+      RemoteCommand.stop => 'Stop',
+      RemoteCommand.rewind => 'Rew',
+      RemoteCommand.fastForward => 'FF',
+      RemoteCommand.skipNext => 'Next',
+      RemoteCommand.skipPrev => 'Prev',
+      RemoteCommand.record => 'Rec',
+      RemoteCommand.num0 => '0',
+      RemoteCommand.num1 => '1',
+      RemoteCommand.num2 => '2',
+      RemoteCommand.num3 => '3',
+      RemoteCommand.num4 => '4',
+      RemoteCommand.num5 => '5',
+      RemoteCommand.num6 => '6',
+      RemoteCommand.num7 => '7',
+      RemoteCommand.num8 => '8',
+      RemoteCommand.num9 => '9',
+      RemoteCommand.changeInput => 'Input',
+      RemoteCommand.menu => 'Menu',
+      RemoteCommand.guide => 'Guide',
+      RemoteCommand.info => 'Info',
+      RemoteCommand.red => 'Red',
+      RemoteCommand.green => 'Green',
+      RemoteCommand.blue => 'Blue',
+      RemoteCommand.yellow => 'Yellow',
+      RemoteCommand.subtitles => 'Sub',
+      RemoteCommand.aspect => 'Aspect',
+      RemoteCommand.internet => 'Net',
+      RemoteCommand.apps => 'Apps',
+      RemoteCommand.vieraLink => 'Link',
+      RemoteCommand.lastView => 'Last',
+    };
+  }
+}
