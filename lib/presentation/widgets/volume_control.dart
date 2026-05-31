@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class VolumeControl extends StatelessWidget {
   final VoidCallback onVolumeUp;
@@ -60,25 +63,60 @@ class VolumeControl extends StatelessWidget {
   }
 }
 
-class _ControlButton extends StatelessWidget {
+class _ControlButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback onPressed;
   const _ControlButton({required this.icon, required this.onPressed});
+
+  @override
+  State<_ControlButton> createState() => _ControlButtonState();
+}
+
+class _ControlButtonState extends State<_ControlButton> {
+  Timer? _repeatTimer;
+
+  @override
+  void dispose() {
+    _repeatTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startRepeat() {
+    HapticFeedback.lightImpact();
+    widget.onPressed();
+    _repeatTimer = Timer.periodic(
+      const Duration(milliseconds: 150),
+      (_) => widget.onPressed(),
+    );
+  }
+
+  void _stopRepeat() {
+    _repeatTimer?.cancel();
+    _repeatTimer = null;
+  }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 52,
       height: 52,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+      child: GestureDetector(
+        onLongPressStart: (_) => _startRepeat(),
+        onLongPressEnd: (_) => _stopRepeat(),
+        onLongPressCancel: _stopRepeat,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            widget.onPressed();
+          },
+          child: Icon(widget.icon, size: 24),
         ),
-        onPressed: onPressed,
-        child: Icon(icon, size: 24),
       ),
     );
   }

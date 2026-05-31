@@ -20,6 +20,12 @@ TvController _createController(TvBrand brand) {
   }
 }
 
+/// Stored MAC address for Wake-on-LAN.
+final wolMacAddressProvider = FutureProvider<String?>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('wol_mac_address');
+});
+
 /// Manages the list of saved devices.
 final savedDevicesProvider =
     FutureProvider<List<TvDeviceInfo>>((ref) async {
@@ -42,32 +48,50 @@ final isConnectedProvider = Provider<bool>((ref) {
   return controller?.isConnected ?? false;
 });
 
+
 /// Discover TVs on the network.
 final discoveryProvider = FutureProvider<List<TvDeviceInfo>>((ref) async {
   return SsdpDiscovery.discover();
 });
+
+/// The device currently being connected to (null if idle).
+final connectingDeviceProvider = StateProvider<TvDeviceInfo?>((ref) => null);
 
 /// Connects to a TV device.
 final connectToDeviceProvider = FutureProvider.family<void, TvDeviceInfo>((
   ref,
   device,
 ) async {
-  final controller = _createController(device.brand);
-  final success = await controller.connect(device);
-  if (success) {
-    ref.read(currentDeviceProvider.notifier).state = device;
-    ref.read(tvControllerProvider.notifier).state = controller;
+  // Set connecting state — OK here because this runs inside the Future,
+  // not during another provider's synchronous build.
+  // We use Future.microtask to defer the state change past the build phase.
+  await Future<void>.delayed(Duration.zero);
+  ref.read(connectingDeviceProvider.notifier).state = device;
 
-    // Persist the device
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList('saved_devices') ?? [];
-    final deviceJson = jsonEncode(device.toJson());
-    saved.remove(deviceJson);
-    saved.insert(0, deviceJson);
-    await prefs.setStringList('saved_devices', saved);
-    ref.invalidate(savedDevicesProvider);
-  } else {
-    throw Exception('Failed to connect to ${device.name}');
+  try {
+    final controller = _createController(device.brand);
+    final success = await controller.connect(device);
+    if (success) {
+      ref.read(currentDeviceProvider.notifier).state = device;
+      ref.read(tvControllerProvider.notifier).state = controller;
+
+      // Persist the device
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList('saved_devices') ?? [];
+      final deviceJson = jsonEncode(device.toJson());
+      saved.remove(deviceJson);
+      saved.insert(0, deviceJson);
+      await prefs.setStringList('saved_devices', saved);
+
+      // Remember last connected device for auto-reconnect
+      await prefs.setString('last_connected', deviceJson);
+
+      ref.invalidate(savedDevicesProvider);
+    } else {
+      throw Exception('Failed to connect to ${device.name}');
+    }
+  } finally {
+    ref.read(connectingDeviceProvider.notifier).state = null;
   }
 });
 
@@ -82,15 +106,25 @@ final disconnectProvider = Provider<Future<void> Function()>((ref) {
 });
 
 /// Sends a remote command to the connected TV.
-final sendCommandProvider = Provider<Future<void> Function(RemoteCommand)>((
+/// Returns null on success, or an error message string on failure.
+final sendCommandProvider = Provider<Future<String?> Function(RemoteCommand)>((
   ref,
 ) {
   return (RemoteCommand command) async {
-    final controller = ref.read(tvControllerProvider);
-    if (controller == null) {
-      throw StateError('Not connected to a TV');
+    try {
+      final controller = ref.read(tvControllerProvider);
+      if (controller == null) {
+        return 'Not connected to a TV';
+      }
+      await controller.sendCommand(command);
+      return null; // success
+    } catch (e) {
+      // Detect disconnection
+      ref.read(tvControllerProvider)?.disconnect();
+      ref.read(tvControllerProvider.notifier).state = null;
+      ref.read(isConnectedProvider);
+      return 'Command failed: $e';
     }
-    await controller.sendCommand(command);
   };
 });
 
@@ -99,13 +133,38 @@ final wakeOnLanProvider = Provider<Future<void> Function(TvDeviceInfo)>((
   ref,
 ) {
   return (TvDeviceInfo device) async {
-    await _sendWol(device);
+    await _sendWol(ref, device);
   };
 });
 
-Future<void> _sendWol(TvDeviceInfo device) async {
-  // Panasonic TVs typically use a WOL magic packet with the TV's MAC address.
-  // Since we don't always have the MAC address, we try a generic broadcast.
-  // Users can configure the MAC address in settings for reliable WOL.
-  await WakeOnLan.wake('00:00:00:00:00:00');
+Future<void> _sendWol(Ref ref, TvDeviceInfo device) async {
+  final macAddress = ref.read(wolMacAddressProvider).value ?? '';
+  if (macAddress.isEmpty) return; // No MAC configured, skip WOL
+
+  await WakeOnLan.wake(macAddress);
 }
+
+/// Delete a saved device.
+final deleteDeviceProvider = Provider<Future<void> Function(TvDeviceInfo)>((
+  ref,
+) {
+  return (TvDeviceInfo device) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('saved_devices') ?? [];
+    final deviceJson = jsonEncode(device.toJson());
+    saved.remove(deviceJson);
+    await prefs.setStringList('saved_devices', saved);
+    ref.invalidate(savedDevicesProvider);
+  };
+});
+
+/// Save the WOL MAC address.
+final saveMacAddressProvider = Provider<Future<void> Function(String)>((
+  ref,
+) {
+  return (String mac) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('wol_mac_address', mac);
+    ref.invalidate(wolMacAddressProvider);
+  };
+});

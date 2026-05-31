@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
 import '../../../domain/models/tv_device_info.dart';
 import '../../../domain/models/remote_command.dart';
 import '../../../domain/interfaces/tv_controller.dart';
@@ -8,10 +11,10 @@ import 'panasonic_commands.dart';
 /// Panasonic TV controller using Viera NRC SOAP/XML protocol.
 ///
 /// Sends commands to port 55000 via HTTP POST with SOAP envelopes.
-/// For TVs requiring PIN authentication (My Home Screen 6+), the encrypted
-/// handshake is not yet implemented — see [PanasonicEncryption] stub.
+/// Uses [dart:io HttpClient] on native platforms and [package:http] on Web.
 class PanasonicController implements TvController {
   final HttpClient _httpClient = HttpClient();
+  final http.Client _webClient = http.Client();
   String? _ipAddress;
   int _port = 55000;
   bool _connected = false;
@@ -35,6 +38,7 @@ class PanasonicController implements TvController {
     _connected = false;
     _ipAddress = null;
     _httpClient.close();
+    _webClient.close();
   }
 
   @override
@@ -45,27 +49,38 @@ class PanasonicController implements TvController {
 
     final nrcKey = PanasonicCommands.nrcKey(command);
     final soapBody = _buildSoapEnvelope(nrcKey);
+    final url = 'http://$_ipAddress:$_port/nrc/control_0';
 
-    final request = await _httpClient.postUrl(
-      Uri.parse('http://$_ipAddress:$_port/nrc/control_0'),
-    );
-    request.headers.set('Content-Type', 'text/xml; charset="utf-8"');
-    request.headers.set('SOAPACTION', '"urn:panasonic-com:service:p00NetworkControl:1#X_SendKey"');
-    request.headers.set('Accept', 'text/xml');
-    request.headers.set('Cache-Control', 'no-cache');
-    request.headers.set('Pragma', 'no-cache');
-    request.write(soapBody);
+    if (kIsWeb) {
+      await _webClient.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'text/xml; charset="utf-8"',
+          'SOAPACTION':
+              '"urn:panasonic-com:service:p00NetworkControl:1#X_SendKey"',
+          'Accept': 'text/xml',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+        body: soapBody,
+      );
+    } else {
+      final request = await _httpClient.postUrl(Uri.parse(url));
+      request.headers.set('Content-Type', 'text/xml; charset="utf-8"');
+      request.headers.set('SOAPACTION',
+          '"urn:panasonic-com:service:p00NetworkControl:1#X_SendKey"');
+      request.headers.set('Accept', 'text/xml');
+      request.headers.set('Cache-Control', 'no-cache');
+      request.headers.set('Pragma', 'no-cache');
+      request.write(soapBody);
 
-    final response = await request.close();
-    await response.drain();
+      final response = await request.close();
+      await response.drain();
+    }
   }
 
   @override
   Future<void> powerOn(TvDeviceInfo device) async {
-    // Panasonic TVs typically respond to Wake-on-LAN for power-on.
-    // This is handled by the WakeOnLan utility in core/discovery/.
-    // For Panasonic specifically, we also try a power command via NRC
-    // in case the TV is in standby with network active.
     try {
       await connect(device);
       await sendCommand(RemoteCommand.power);
@@ -77,10 +92,23 @@ class PanasonicController implements TvController {
 
   Future<bool> _testConnection() async {
     try {
-      final request = await _httpClient
-          .getUrl(Uri.parse('http://$_ipAddress:$_port/'))
-          .timeout(const Duration(seconds: 3));
-      await request.close();
+      if (kIsWeb) {
+        // Web: try a simple ping via HTTP to the NRC endpoint
+        await _webClient
+            .post(
+              Uri.parse('http://$_ipAddress:$_port/nrc/control_0'),
+              headers: {'Content-Type': 'text/xml; charset="utf-8"'},
+              body: _buildSoapEnvelope('NRC_POWER-ONOFF'),
+            )
+            .timeout(const Duration(seconds: 3));
+      } else {
+        final socket = await Socket.connect(
+          _ipAddress!,
+          _port,
+          timeout: const Duration(seconds: 3),
+        );
+        socket.destroy();
+      }
       return true;
     } catch (_) {
       return false;

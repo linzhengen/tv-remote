@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/remote_command.dart';
-import '../providers/tv_provider.dart';
 import 'remote_button.dart';
 
-class NumpadWidget extends ConsumerWidget {
-  const NumpadWidget({super.key});
+class NumpadWidget extends StatelessWidget {
+  final Future<void> Function(RemoteCommand) onCommand;
+  const NumpadWidget({super.key, required this.onCommand});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sendCommand = ref.watch(sendCommandProvider);
-
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Row(
@@ -19,17 +16,17 @@ class NumpadWidget extends ConsumerWidget {
           children: [
             RemoteButton(
               command: RemoteCommand.num1,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
             RemoteButton(
               command: RemoteCommand.num2,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
             RemoteButton(
               command: RemoteCommand.num3,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
           ],
@@ -40,17 +37,17 @@ class NumpadWidget extends ConsumerWidget {
           children: [
             RemoteButton(
               command: RemoteCommand.num4,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
             RemoteButton(
               command: RemoteCommand.num5,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
             RemoteButton(
               command: RemoteCommand.num6,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
           ],
@@ -61,17 +58,17 @@ class NumpadWidget extends ConsumerWidget {
           children: [
             RemoteButton(
               command: RemoteCommand.num7,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
             RemoteButton(
               command: RemoteCommand.num8,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
             RemoteButton(
               command: RemoteCommand.num9,
-              onPressed: sendCommand,
+              onPressed: onCommand,
               compact: true,
             ),
           ],
@@ -79,7 +76,7 @@ class NumpadWidget extends ConsumerWidget {
         const SizedBox(height: 8),
         RemoteButton(
           command: RemoteCommand.num0,
-          onPressed: sendCommand,
+          onPressed: onCommand,
           compact: true,
           size: 100,
         ),

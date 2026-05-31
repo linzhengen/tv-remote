@@ -63,8 +63,9 @@ cd ios && pod install && cd ..
 # macOS
 flutter run -d macos
 
-# iOS
-flutter run -d ios
+# iOS (boot a simulator first)
+open -a Simulator
+flutter run
 
 # Android
 flutter run -d android

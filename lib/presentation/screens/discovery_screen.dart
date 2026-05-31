@@ -11,67 +11,97 @@ class DiscoveryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final savedAsync = ref.watch(savedDevicesProvider);
     final discoveredAsync = ref.watch(discoveryProvider);
+    final connectingDevice = ref.watch(connectingDeviceProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('TV Remote'),
         centerTitle: true,
       ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Discovered devices
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Text(
-                    'Nearby TVs',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Discovered devices
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Nearby TVs',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => ref.invalidate(discoveryProvider),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Scan'),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: () =>
-                        ref.invalidate(discoveryProvider),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Scan'),
+                ),
+                Expanded(
+                  child: discoveredAsync.when(
+                    data: (devices) => _DeviceList(devices: devices),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, _) => Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Discovery error: $err',
+                              style: const TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => ref.invalidate(discoveryProvider),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: discoveredAsync.when(
-                data: (devices) => _DeviceList(
-                  devices: devices,
-                  isSaved: false,
                 ),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Discovery error: $err')),
-              ),
-            ),
-            const Divider(),
-            // Saved devices
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Saved TVs',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            Expanded(
-              child: savedAsync.when(
-                data: (devices) => _DeviceList(
-                  devices: devices,
-                  isSaved: true,
+                const Divider(),
+                // Saved devices
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Saved TVs',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) =>
-                    const Center(child: Text('No saved devices')),
+                Expanded(
+                  child: savedAsync.when(
+                    data: (devices) => _DeviceList(devices: devices),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, _) =>
+                        const Center(child: Text('No saved devices')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Loading overlay
+          if (connectingDevice != null)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Connecting...', style: TextStyle(color: Colors.white)),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDeviceDialog(context, ref),
@@ -103,13 +133,13 @@ class DiscoveryScreen extends ConsumerWidget {
             onPressed: () {
               final ip = ipController.text.trim();
               if (ip.isNotEmpty) {
+                Navigator.pop(ctx);
                 final device = TvDeviceInfo(
                   name: 'Panasonic TV ($ip)',
                   ipAddress: ip,
                   brand: TvBrand.panasonic,
                 );
                 ref.read(connectToDeviceProvider(device));
-                Navigator.pop(ctx);
               }
             },
             child: const Text('Connect'),
@@ -122,9 +152,8 @@ class DiscoveryScreen extends ConsumerWidget {
 
 class _DeviceList extends ConsumerWidget {
   final List<TvDeviceInfo> devices;
-  final bool isSaved;
 
-  const _DeviceList({required this.devices, required this.isSaved});
+  const _DeviceList({required this.devices});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -137,24 +166,40 @@ class _DeviceList extends ConsumerWidget {
       );
     }
 
+    final deleteDevice = ref.watch(deleteDeviceProvider);
+
     return ListView.builder(
       itemCount: devices.length,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemBuilder: (context, index) {
         final device = devices[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: Icon(
-              Icons.tv,
-              color: Theme.of(context).colorScheme.primary,
+        return Dismissible(
+          key: Key('saved_${device.ipAddress}_${device.port}'),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            color: Colors.red,
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          confirmDismiss: (_) async {
+            return true;
+          },
+          onDismissed: (_) => deleteDevice(device),
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: Icon(
+                Icons.tv,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              title: Text(device.name),
+              subtitle: Text('${device.ipAddress}:${device.port}'),
+              trailing: const Icon(Icons.arrow_forward_ios),
+              onTap: () {
+                ref.read(connectToDeviceProvider(device));
+              },
             ),
-            title: Text(device.name),
-            subtitle: Text('${device.ipAddress}:${device.port}'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              ref.read(connectToDeviceProvider(device));
-            },
           ),
         );
       },

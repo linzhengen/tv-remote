@@ -7,7 +7,8 @@ import '../widgets/remote_button.dart';
 import '../widgets/dpad.dart';
 import '../widgets/numpad.dart';
 import '../widgets/volume_control.dart';
-import 'discovery_screen.dart';
+import '../widgets/input_selector.dart';
+import 'settings_screen.dart';
 
 class RemoteScreen extends ConsumerWidget {
   const RemoteScreen({super.key});
@@ -19,19 +20,32 @@ class RemoteScreen extends ConsumerWidget {
     final sendCommand = ref.watch(sendCommandProvider);
     final disconnect = ref.watch(disconnectProvider);
 
-    if (device == null) {
-      return const DiscoveryScreen();
+    Future<void> safeSendCommand(RemoteCommand cmd) async {
+      final error = await sendCommand(cmd);
+      if (error != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(device.name),
+        title: Text(device?.name ?? 'Remote'),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // Open settings
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
             },
           ),
           IconButton(
@@ -47,7 +61,8 @@ class RemoteScreen extends ConsumerWidget {
             children: [
               // Connection status
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: isConnected
                       ? Colors.green.withValues(alpha: 0.2)
@@ -75,25 +90,30 @@ class RemoteScreen extends ConsumerWidget {
               const SizedBox(height: 16),
 
               // D-Pad (Navigation)
-              const DpadWidget(),
+              DpadWidget(onCommand: safeSendCommand),
               const SizedBox(height: 20),
 
               // Volume & Channel
               VolumeControl(
-                onVolumeUp: () => sendCommand(RemoteCommand.volumeUp),
-                onVolumeDown: () => sendCommand(RemoteCommand.volumeDown),
-                onChannelUp: () => sendCommand(RemoteCommand.channelUp),
-                onChannelDown: () => sendCommand(RemoteCommand.channelDown),
-                onMute: () => sendCommand(RemoteCommand.mute),
+                onVolumeUp: () => safeSendCommand(RemoteCommand.volumeUp),
+                onVolumeDown: () => safeSendCommand(RemoteCommand.volumeDown),
+                onChannelUp: () => safeSendCommand(RemoteCommand.channelUp),
+                onChannelDown: () =>
+                    safeSendCommand(RemoteCommand.channelDown),
+                onMute: () => safeSendCommand(RemoteCommand.mute),
               ),
               const SizedBox(height: 20),
 
+              // Input Selector
+              InputSelector(onCommand: safeSendCommand),
+              const SizedBox(height: 20),
+
               // Media Controls
-              _MediaRow(sendCommand: sendCommand),
+              _MediaRow(sendCommand: safeSendCommand),
               const SizedBox(height: 20),
 
               // Number Pad
-              const NumpadWidget(),
+              NumpadWidget(onCommand: safeSendCommand),
               const SizedBox(height: 20),
 
               // Quick Access Row
@@ -103,32 +123,32 @@ class RemoteScreen extends ConsumerWidget {
                 children: [
                   RemoteButton(
                     command: RemoteCommand.home,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                     compact: true,
                   ),
                   RemoteButton(
                     command: RemoteCommand.menu,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                     compact: true,
                   ),
                   RemoteButton(
                     command: RemoteCommand.apps,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                     compact: true,
                   ),
                   RemoteButton(
                     command: RemoteCommand.internet,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                     compact: true,
                   ),
                   RemoteButton(
                     command: RemoteCommand.guide,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                     compact: true,
                   ),
                   RemoteButton(
                     command: RemoteCommand.info,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                     compact: true,
                   ),
                 ],
@@ -142,22 +162,22 @@ class RemoteScreen extends ConsumerWidget {
                   _ColorButton(
                     color: Colors.red,
                     command: RemoteCommand.red,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                   ),
                   _ColorButton(
                     color: Colors.green,
                     command: RemoteCommand.green,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                   ),
                   _ColorButton(
                     color: Colors.blue,
                     command: RemoteCommand.blue,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                   ),
                   _ColorButton(
                     color: Colors.yellow,
                     command: RemoteCommand.yellow,
-                    onPressed: sendCommand,
+                    onPressed: safeSendCommand,
                   ),
                 ],
               ),
@@ -179,40 +199,33 @@ class _MediaRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         RemoteButton(
-          command: RemoteCommand.rewind,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.rewind,
+            onPressed: sendCommand,
+            compact: true),
         RemoteButton(
-          command: RemoteCommand.play,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.play,
+            onPressed: sendCommand,
+            compact: true),
         RemoteButton(
-          command: RemoteCommand.fastForward,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.fastForward,
+            onPressed: sendCommand,
+            compact: true),
         RemoteButton(
-          command: RemoteCommand.pause,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.pause,
+            onPressed: sendCommand,
+            compact: true),
         RemoteButton(
-          command: RemoteCommand.stop,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.stop,
+            onPressed: sendCommand,
+            compact: true),
         RemoteButton(
-          command: RemoteCommand.skipPrev,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.skipPrev,
+            onPressed: sendCommand,
+            compact: true),
         RemoteButton(
-          command: RemoteCommand.skipNext,
-          onPressed: sendCommand,
-          compact: true,
-        ),
+            command: RemoteCommand.skipNext,
+            onPressed: sendCommand,
+            compact: true),
       ],
     );
   }
