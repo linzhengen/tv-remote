@@ -11,6 +11,11 @@ import '../../core/discovery/ssdp_discovery.dart';
 import '../../core/discovery/wake_on_lan.dart';
 
 /// Creates the appropriate [TvController] for a given brand.
+/// Override this provider in tests to inject mock controllers.
+final controllerFactoryProvider = Provider<TvController Function(TvBrand)>((ref) {
+  return _createController;
+});
+
 TvController _createController(TvBrand brand) {
   switch (brand) {
     case TvBrand.panasonic:
@@ -67,7 +72,8 @@ final connectToDeviceProvider = Provider<Future<void> Function(TvDeviceInfo)>((
     ref.read(connectingDeviceProvider.notifier).state = device;
 
     try {
-      final controller = _createController(device.brand);
+      final factory = ref.read(controllerFactoryProvider);
+      final controller = factory(device.brand);
       final success = await controller.connect(device);
       if (success) {
         ref.read(currentDeviceProvider.notifier).state = device;

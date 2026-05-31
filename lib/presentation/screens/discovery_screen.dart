@@ -139,7 +139,7 @@ class DiscoveryScreen extends ConsumerWidget {
                   ipAddress: ip,
                   brand: TvBrand.panasonic,
                 );
-                ref.read(connectToDeviceProvider)(device);
+                ref.read(connectToDeviceProvider)(device).catchError((_) {});
               }
             },
             child: const Text('Connect'),
@@ -197,7 +197,7 @@ class _DeviceList extends ConsumerWidget {
               subtitle: Text('${device.ipAddress}:${device.port}'),
               trailing: const Icon(Icons.arrow_forward_ios),
               onTap: () {
-                ref.read(connectToDeviceProvider)(device);
+                ref.read(connectToDeviceProvider)(device).catchError((_) {});
               },
             ),
           ),

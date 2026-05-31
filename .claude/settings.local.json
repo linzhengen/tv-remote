@@ -6,7 +6,8 @@
       "Bash(flutter pub:*)",
       "Bash(flutter analyze:*)",
       "Bash(flutter test:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(flutter devices:*)"
     ]
   }
 }
