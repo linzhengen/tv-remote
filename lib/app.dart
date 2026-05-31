@@ -7,26 +7,33 @@ import 'presentation/providers/tv_provider.dart';
 import 'presentation/screens/discovery_screen.dart';
 import 'presentation/screens/remote_screen.dart';
 
-final autoReconnectProvider = FutureProvider<void>((ref) async {
-  final device = await loadLastDevice();
-  if (device == null) return;
-  // Trigger connection attempt — on success, currentDeviceProvider
-  // and tvControllerProvider are set by connectToDeviceProvider.
-  try {
-    await ref.read(connectToDeviceProvider(device).future);
-  } catch (_) {
-    // Connection failed — stay on discovery screen
-  }
-});
-
-class TvRemoteApp extends ConsumerWidget {
+class TvRemoteApp extends ConsumerStatefulWidget {
   const TvRemoteApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TvRemoteApp> createState() => _TvRemoteAppState();
+}
+
+class _TvRemoteAppState extends ConsumerState<TvRemoteApp> {
+  @override
+  void initState() {
+    super.initState();
+    _autoReconnect();
+  }
+
+  Future<void> _autoReconnect() async {
+    final device = await loadLastDevice();
+    if (device == null || !mounted) return;
+    try {
+      await ref.read(connectToDeviceProvider)(device);
+    } catch (_) {
+      // Connection failed — stay on discovery screen
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final device = ref.watch(currentDeviceProvider);
-    // Trigger auto-reconnect on first build
-    ref.watch(autoReconnectProvider);
 
     return MaterialApp(
       title: 'TV Remote',

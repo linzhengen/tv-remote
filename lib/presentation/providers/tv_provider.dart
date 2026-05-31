@@ -58,41 +58,40 @@ final discoveryProvider = FutureProvider<List<TvDeviceInfo>>((ref) async {
 final connectingDeviceProvider = StateProvider<TvDeviceInfo?>((ref) => null);
 
 /// Connects to a TV device.
-final connectToDeviceProvider = FutureProvider.family<void, TvDeviceInfo>((
+/// Returns an async function so the connection logic is not a provider itself,
+/// avoiding Riverpod's restriction on modifying other providers during build.
+final connectToDeviceProvider = Provider<Future<void> Function(TvDeviceInfo)>((
   ref,
-  device,
-) async {
-  // Set connecting state — OK here because this runs inside the Future,
-  // not during another provider's synchronous build.
-  // We use Future.microtask to defer the state change past the build phase.
-  await Future<void>.delayed(Duration.zero);
-  ref.read(connectingDeviceProvider.notifier).state = device;
+) {
+  return (TvDeviceInfo device) async {
+    ref.read(connectingDeviceProvider.notifier).state = device;
 
-  try {
-    final controller = _createController(device.brand);
-    final success = await controller.connect(device);
-    if (success) {
-      ref.read(currentDeviceProvider.notifier).state = device;
-      ref.read(tvControllerProvider.notifier).state = controller;
+    try {
+      final controller = _createController(device.brand);
+      final success = await controller.connect(device);
+      if (success) {
+        ref.read(currentDeviceProvider.notifier).state = device;
+        ref.read(tvControllerProvider.notifier).state = controller;
 
-      // Persist the device
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getStringList('saved_devices') ?? [];
-      final deviceJson = jsonEncode(device.toJson());
-      saved.remove(deviceJson);
-      saved.insert(0, deviceJson);
-      await prefs.setStringList('saved_devices', saved);
+        // Persist the device
+        final prefs = await SharedPreferences.getInstance();
+        final saved = prefs.getStringList('saved_devices') ?? [];
+        final deviceJson = jsonEncode(device.toJson());
+        saved.remove(deviceJson);
+        saved.insert(0, deviceJson);
+        await prefs.setStringList('saved_devices', saved);
 
-      // Remember last connected device for auto-reconnect
-      await prefs.setString('last_connected', deviceJson);
+        // Remember last connected device for auto-reconnect
+        await prefs.setString('last_connected', deviceJson);
 
-      ref.invalidate(savedDevicesProvider);
-    } else {
-      throw Exception('Failed to connect to ${device.name}');
+        ref.invalidate(savedDevicesProvider);
+      } else {
+        throw Exception('Failed to connect to ${device.name}');
+      }
+    } finally {
+      ref.read(connectingDeviceProvider.notifier).state = null;
     }
-  } finally {
-    ref.read(connectingDeviceProvider.notifier).state = null;
-  }
+  };
 });
 
 /// Disconnects from the current TV.

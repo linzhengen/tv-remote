@@ -169,7 +169,7 @@ class _AddDeviceFormState extends ConsumerState<_AddDeviceForm> {
               ipAddress: ip,
               brand: TvBrand.panasonic,
             );
-            ref.read(connectToDeviceProvider(device));
+            ref.read(connectToDeviceProvider)(device);
           },
           child: const Text('Connect'),
         ),
