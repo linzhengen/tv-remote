@@ -59,6 +59,15 @@ class RemoteScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // Power button
+              RemoteButton(
+                command: RemoteCommand.power,
+                onPressed: safeSendCommand,
+                compact: true,
+                size: 72,
+              ),
+              const SizedBox(height: 16),
+
               // Connection status
               Container(
                 padding:
