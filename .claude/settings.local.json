@@ -7,7 +7,10 @@
       "Bash(flutter analyze:*)",
       "Bash(flutter test:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(flutter devices:*)"
+      "Bash(flutter devices:*)",
+      "Bash(flutter --version)",
+      "Bash(xcodebuild -version)",
+      "Bash(flutter run:*)"
     ]
   }
 }

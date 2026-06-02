@@ -114,38 +114,80 @@ class DiscoveryScreen extends ConsumerWidget {
     final ipController = TextEditingController();
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add TV manually'),
-        content: TextField(
-          controller: ipController,
-          decoration: const InputDecoration(
-            labelText: 'IP Address',
-            hintText: '192.168.x.x',
+      builder: (ctx) {
+        var isLoading = false;
+        String? errorMessage;
+        return StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            title: const Text('Add TV manually'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: ipController,
+                  enabled: !isLoading,
+                  decoration: const InputDecoration(
+                    labelText: 'IP Address',
+                    hintText: '192.168.x.x',
+                  ),
+                  keyboardType:
+                      TextInputType.numberWithOptions(decimal: true),
+                ),
+                if (isLoading) ...[
+                  const SizedBox(height: 16),
+                  const Center(child: CircularProgressIndicator()),
+                ],
+                if (errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    errorMessage!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed:
+                    isLoading ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        final ip = ipController.text.trim();
+                        if (ip.isEmpty) return;
+                        setState(() {
+                          isLoading = true;
+                          errorMessage = null;
+                        });
+                        try {
+                          final device = TvDeviceInfo(
+                            name: 'Panasonic TV ($ip)',
+                            ipAddress: ip,
+                            brand: TvBrand.panasonic,
+                          );
+                          await ref.read(connectToDeviceProvider)(
+                              device);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        } catch (e) {
+                          setState(() {
+                            isLoading = false;
+                            errorMessage =
+                                'Connection failed: ${e.toString().replaceFirst("Exception: ", "")}';
+                          });
+                        }
+                      },
+                child: const Text('Connect'),
+              ),
+            ],
           ),
-          keyboardType: TextInputType.number,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final ip = ipController.text.trim();
-              if (ip.isNotEmpty) {
-                Navigator.pop(ctx);
-                final device = TvDeviceInfo(
-                  name: 'Panasonic TV ($ip)',
-                  ipAddress: ip,
-                  brand: TvBrand.panasonic,
-                );
-                ref.read(connectToDeviceProvider)(device).catchError((_) {});
-              }
-            },
-            child: const Text('Connect'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

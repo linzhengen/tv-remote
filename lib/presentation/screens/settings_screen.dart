@@ -156,7 +156,7 @@ class _AddDeviceFormState extends ConsumerState<_AddDeviceForm> {
               hintText: '192.168.x.x',
               border: OutlineInputBorder(),
             ),
-            keyboardType: TextInputType.number,
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
           ),
         ),
         const SizedBox(width: 12),
