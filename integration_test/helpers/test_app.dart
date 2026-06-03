@@ -23,7 +23,7 @@ Widget buildTestApp() {
         return (_) => _mock!;
       }),
       // Prevent real SSDP network discovery
-      discoveryProvider.overrideWith((ref) async => []),
+      scanNetworkProvider.overrideWith((ref) => () async {}),
       // Prevent SharedPreferences read (returns empty)
       savedDevicesProvider.overrideWith((ref) async => []),
     ],

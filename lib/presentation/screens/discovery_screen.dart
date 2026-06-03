@@ -4,14 +4,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/tv_device_info.dart';
 import '../providers/tv_provider.dart';
 
-class DiscoveryScreen extends ConsumerWidget {
+class DiscoveryScreen extends ConsumerStatefulWidget {
   const DiscoveryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DiscoveryScreen> createState() => _DiscoveryScreenState();
+}
+
+class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final saved = ref.read(savedDevicesProvider).valueOrNull ?? [];
+      if (saved.isEmpty) {
+        ref.read(scanNetworkProvider)();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final savedAsync = ref.watch(savedDevicesProvider);
-    final discoveredAsync = ref.watch(discoveryProvider);
+    final devices = ref.watch(discoveredDevicesProvider);
+    final isScanning = ref.watch(isScanningProvider);
     final connectingDevice = ref.watch(connectingDeviceProvider);
+    final scanNetwork = ref.watch(scanNetworkProvider);
+
+    // Filter out already-saved devices
+    final saved = savedAsync.valueOrNull ?? [];
+    final savedKeys = saved
+        .map((d) => '${d.ipAddress}:${d.port}')
+        .toSet();
+    final filtered = devices
+        .where((d) => !savedKeys.contains('${d.ipAddress}:${d.port}'))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -35,34 +62,36 @@ class DiscoveryScreen extends ConsumerWidget {
                             fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
-                      TextButton.icon(
-                        onPressed: () => ref.invalidate(discoveryProvider),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Scan'),
+                      FilledButton.icon(
+                        onPressed:
+                            isScanning ? null : () => scanNetwork(),
+                        icon: isScanning
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.refresh),
+                        label:
+                            Text(isScanning ? 'Scanning...' : 'Scan'),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: discoveredAsync.when(
-                    data: (devices) => _DeviceList(devices: devices),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, _) => Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Discovery error: $err',
-                              style: const TextStyle(color: Colors.grey)),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () => ref.invalidate(discoveryProvider),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  child: isScanning
+                      ? const Center(child: CircularProgressIndicator())
+                      : filtered.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No devices found',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            )
+                          : _DeviceList(devices: filtered),
                 ),
                 const Divider(),
                 // Saved devices
@@ -76,17 +105,17 @@ class DiscoveryScreen extends ConsumerWidget {
                 ),
                 Expanded(
                   child: savedAsync.when(
-                    data: (devices) => _DeviceList(devices: devices),
+                    data: (d) => _DeviceList(devices: d),
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (err, _) =>
+                    error: (_, _) =>
                         const Center(child: Text('No saved devices')),
                   ),
                 ),
               ],
             ),
           ),
-          // Loading overlay
+          // Connecting overlay
           if (connectingDevice != null)
             Container(
               color: Colors.black54,

@@ -10,7 +10,9 @@
       "Bash(flutter devices:*)",
       "Bash(flutter --version)",
       "Bash(xcodebuild -version)",
-      "Bash(flutter run:*)"
+      "Bash(flutter run:*)",
+      "Bash(flutter build:*)",
+      "Bash(pod --version)"
     ]
   }
 }

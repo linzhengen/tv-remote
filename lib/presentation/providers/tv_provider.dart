@@ -54,9 +54,25 @@ final isConnectedProvider = Provider<bool>((ref) {
 });
 
 
-/// Discover TVs on the network.
-final discoveryProvider = FutureProvider<List<TvDeviceInfo>>((ref) async {
-  return SsdpDiscovery.discover();
+/// Whether a network scan is currently in progress.
+final isScanningProvider = StateProvider<bool>((ref) => false);
+
+/// Discovered devices from the last scan.
+final discoveredDevicesProvider = StateProvider<List<TvDeviceInfo>>((ref) => []);
+
+/// Scans the network for TVs.
+final scanNetworkProvider = Provider<Future<void> Function()>((ref) {
+  return () async {
+    if (ref.read(isScanningProvider)) return; // Already scanning
+    ref.read(isScanningProvider.notifier).state = true;
+
+    try {
+      final devices = await SsdpDiscovery.discover();
+      ref.read(discoveredDevicesProvider.notifier).state = devices;
+    } finally {
+      ref.read(isScanningProvider.notifier).state = false;
+    }
+  };
 });
 
 /// The device currently being connected to (null if idle).
@@ -79,13 +95,33 @@ final connectToDeviceProvider = Provider<Future<void> Function(TvDeviceInfo)>((
         ref.read(currentDeviceProvider.notifier).state = device;
         ref.read(tvControllerProvider.notifier).state = controller;
 
-        // Persist the device
+        // Persist the device, preserving any custom name from an existing save
         final prefs = await SharedPreferences.getInstance();
-        final saved = prefs.getStringList('saved_devices') ?? [];
-        final deviceJson = jsonEncode(device.toJson());
-        saved.remove(deviceJson);
-        saved.insert(0, deviceJson);
-        await prefs.setStringList('saved_devices', saved);
+        final savedJsons = prefs.getStringList('saved_devices') ?? [];
+        final savedDevices = savedJsons
+            .map((e) => TvDeviceInfo.fromJson(
+                jsonDecode(e) as Map<String, dynamic>))
+            .toList();
+
+        // Remove any existing device with the same IP:Port
+        final existingIndex = savedDevices.indexWhere(
+          (d) => d.ipAddress == device.ipAddress && d.port == device.port,
+        );
+        TvDeviceInfo toSave;
+        if (existingIndex != -1) {
+          // Preserve the user's custom name
+          toSave = device.copyWith(name: savedDevices[existingIndex].name);
+          savedDevices.removeAt(existingIndex);
+        } else {
+          toSave = device;
+        }
+        savedDevices.insert(0, toSave);
+
+        final updatedJsons =
+            savedDevices.map((d) => jsonEncode(d.toJson())).toList();
+        await prefs.setStringList('saved_devices', updatedJsons);
+
+        final deviceJson = jsonEncode(toSave.toJson());
 
         // Remember last connected device for auto-reconnect
         await prefs.setString('last_connected', deviceJson);
