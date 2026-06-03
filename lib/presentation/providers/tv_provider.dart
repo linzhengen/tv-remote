@@ -149,6 +149,40 @@ Future<void> _sendWol(Ref ref, TvDeviceInfo device) async {
   await WakeOnLan.wake(macAddress);
 }
 
+/// Rename a saved device.
+final renameDeviceProvider = Provider<Future<void> Function(TvDeviceInfo, String)>((
+  ref,
+) {
+  return (TvDeviceInfo device, String newName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('saved_devices') ?? [];
+    final oldJson = jsonEncode(device.toJson());
+    final updated = device.copyWith(name: newName);
+    final newJson = jsonEncode(updated.toJson());
+
+    // Replace in saved list
+    final index = saved.indexOf(oldJson);
+    if (index != -1) {
+      saved[index] = newJson;
+    }
+    await prefs.setStringList('saved_devices', saved);
+
+    // Update last_connected if it matches the old device
+    final lastConnected = prefs.getString('last_connected');
+    if (lastConnected == oldJson) {
+      await prefs.setString('last_connected', newJson);
+    }
+
+    // Update current device if connected to this TV
+    if (ref.read(currentDeviceProvider)?.ipAddress == device.ipAddress &&
+        ref.read(currentDeviceProvider)?.port == device.port) {
+      ref.read(currentDeviceProvider.notifier).state = updated;
+    }
+
+    ref.invalidate(savedDevicesProvider);
+  };
+});
+
 /// Delete a saved device.
 final deleteDeviceProvider = Provider<Future<void> Function(TvDeviceInfo)>((
   ref,

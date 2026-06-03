@@ -209,6 +209,7 @@ class _DeviceList extends ConsumerWidget {
     }
 
     final deleteDevice = ref.watch(deleteDeviceProvider);
+    final renameDevice = ref.watch(renameDeviceProvider);
 
     return ListView.builder(
       itemCount: devices.length,
@@ -241,10 +242,49 @@ class _DeviceList extends ConsumerWidget {
               onTap: () {
                 ref.read(connectToDeviceProvider)(device).catchError((_) {});
               },
+              onLongPress: () => _showRenameDialog(
+                  context, device, renameDevice),
             ),
           ),
         );
       },
     );
   }
+}
+
+void _showRenameDialog(
+  BuildContext context,
+  TvDeviceInfo device,
+  Future<void> Function(TvDeviceInfo, String) renameDevice,
+) {
+  final nameController = TextEditingController(text: device.name);
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Rename TV'),
+      content: TextField(
+        controller: nameController,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Name',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final newName = nameController.text.trim();
+            if (newName.isEmpty) return;
+            renameDevice(device, newName);
+            Navigator.pop(ctx);
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
 }

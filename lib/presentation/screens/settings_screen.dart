@@ -14,6 +14,7 @@ class SettingsScreen extends ConsumerWidget {
     final disconnect = ref.watch(disconnectProvider);
     final saveMac = ref.watch(saveMacAddressProvider);
     final deleteDevice = ref.watch(deleteDeviceProvider);
+    final renameDevice = ref.watch(renameDeviceProvider);
 
     final macController = TextEditingController();
     macAsync.whenData((mac) => macController.text = mac ?? '');
@@ -95,6 +96,8 @@ class SettingsScreen extends ConsumerWidget {
                                 icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () => deleteDevice(d),
                               ),
+                              onLongPress: () => _showRenameDialog(
+                                  context, d, renameDevice),
                             ),
                           ))
                       .toList(),
@@ -176,4 +179,41 @@ class _AddDeviceFormState extends ConsumerState<_AddDeviceForm> {
       ],
     );
   }
+}
+
+void _showRenameDialog(
+  BuildContext context,
+  TvDeviceInfo device,
+  Future<void> Function(TvDeviceInfo, String) renameDevice,
+) {
+  final nameController = TextEditingController(text: device.name);
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Rename TV'),
+      content: TextField(
+        controller: nameController,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Name',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final newName = nameController.text.trim();
+            if (newName.isEmpty) return;
+            renameDevice(device, newName);
+            Navigator.pop(ctx);
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
 }

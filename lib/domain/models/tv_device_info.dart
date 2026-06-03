@@ -30,6 +30,22 @@ class TvDeviceInfo {
     );
   }
 
+  TvDeviceInfo copyWith({
+    String? name,
+    String? ipAddress,
+    TvBrand? brand,
+    String? modelName,
+    int? port,
+  }) {
+    return TvDeviceInfo(
+      name: name ?? this.name,
+      ipAddress: ipAddress ?? this.ipAddress,
+      brand: brand ?? this.brand,
+      modelName: modelName ?? this.modelName,
+      port: port ?? this.port,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'name': name,
