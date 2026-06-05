@@ -99,30 +99,17 @@ flutter run -d chrome
 
 ## Architecture
 
-```
-lib/
-├── domain/                  # Interfaces & models (brand-agnostic)
-│   ├── interfaces/          # TvController interface
-│   └── models/              # TvDeviceInfo, RemoteCommand, layouts
-├── data/manufacturers/      # Manufacturer-specific implementations
-│   └── panasonic/           # Panasonic NRC SOAP/XML controller
-├── core/                    # Cross-cutting utilities
-│   ├── discovery/           # SSDP discovery, Wake-on-LAN
-│   └── theme/               # App theme
-└── presentation/            # UI layer (Riverpod + Flutter)
-    ├── providers/           # State management
-    ├── screens/             # Discovery, Remote, Settings
-    └── widgets/             # D-Pad, Numpad, Volume, Media buttons
-```
+The project is structured following Clean Architecture concepts to decouple remote control UI and connection state from manufacturer-specific network protocols.
 
-### Adding a new manufacturer
+For a detailed walkthrough of the design patterns, protocols, and directory breakdown, see the **[AI Development Guide](AGENTS.md)**.
 
-1. Create `lib/data/manufacturers/<brand>/<brand>_controller.dart` implementing `TvController`
-2. Define command mappings
-3. Add discovery logic (if brand-specific)
-4. Register in `tv_provider.dart`
+### Adding a New Manufacturer
 
-No changes needed to the domain or presentation layers.
+Adding a new brand (e.g., Samsung, LG, Sony) is designed to be plug-and-play:
+1. Create a controller implementing `TvController` under `lib/data/manufacturers/<brand>/`.
+2. Register it in the `_createController` factory method in `lib/presentation/providers/tv_provider.dart`.
+
+No changes are needed to the UI or core state presentation layers. Refer to **[AI.md](AGENTS.md)** for a step-by-step checklist.
 
 ## Verify
 
