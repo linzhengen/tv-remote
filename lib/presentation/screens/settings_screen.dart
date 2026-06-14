@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/tv_device_info.dart';
+import '../../domain/models/time_restriction.dart';
 import '../providers/tv_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -10,9 +11,11 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final macAsync = ref.watch(wolMacAddressProvider);
+    final timeRestrictionAsync = ref.watch(timeRestrictionProvider);
     final savedAsync = ref.watch(savedDevicesProvider);
     final disconnect = ref.watch(disconnectProvider);
     final saveMac = ref.watch(saveMacAddressProvider);
+    final saveTimeRestriction = ref.watch(saveTimeRestrictionProvider);
     final deleteDevice = ref.watch(deleteDeviceProvider);
     final renameDevice = ref.watch(renameDeviceProvider);
 
@@ -58,6 +61,15 @@ class SettingsScreen extends ConsumerWidget {
                   child: const Text('Save'),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+
+            // Parental Controls
+            timeRestrictionAsync.when(
+              data: (restriction) =>
+                  _TimeRestrictionSection(restriction: restriction, onSave: saveTimeRestriction),
+              loading: () => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
             ),
             const SizedBox(height: 24),
 
@@ -178,6 +190,103 @@ class _AddDeviceFormState extends ConsumerState<_AddDeviceForm> {
         ),
       ],
     );
+  }
+}
+
+class _TimeRestrictionSection extends StatelessWidget {
+  final TimeRestriction restriction;
+  final Future<void> Function(TimeRestriction) onSave;
+
+  const _TimeRestrictionSection({
+    required this.restriction,
+    required this.onSave,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Parental Controls',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Allowed Viewing Time'),
+            Switch(
+              value: restriction.enabled,
+              onChanged: (value) {
+                onSave(TimeRestriction(
+                  enabled: value,
+                  startHour: restriction.startHour,
+                  startMinute: restriction.startMinute,
+                  endHour: restriction.endHour,
+                  endMinute: restriction.endMinute,
+                ));
+              },
+            ),
+          ],
+        ),
+        if (!restriction.enabled)
+          const Text(
+            'When OFF, all times allowed',
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+        if (restriction.enabled) ...[
+          const SizedBox(height: 8),
+          ListTile(
+            title: const Text('Start Time'),
+            trailing: Text(_formatTime(restriction.startHour, restriction.startMinute)),
+            onTap: () => _pickTime(
+              context,
+              TimeOfDay(hour: restriction.startHour, minute: restriction.startMinute),
+              (picked) => onSave(TimeRestriction(
+                enabled: restriction.enabled,
+                startHour: picked.hour,
+                startMinute: picked.minute,
+                endHour: restriction.endHour,
+                endMinute: restriction.endMinute,
+              )),
+            ),
+          ),
+          ListTile(
+            title: const Text('End Time'),
+            trailing: Text(_formatTime(restriction.endHour, restriction.endMinute)),
+            onTap: () => _pickTime(
+              context,
+              TimeOfDay(hour: restriction.endHour, minute: restriction.endMinute),
+              (picked) => onSave(TimeRestriction(
+                enabled: restriction.enabled,
+                startHour: restriction.startHour,
+                startMinute: restriction.startMinute,
+                endHour: picked.hour,
+                endMinute: picked.minute,
+              )),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  String _formatTime(int hour, int minute) {
+    final h = hour.toString().padLeft(2, '0');
+    final m = minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Future<void> _pickTime(
+    BuildContext context,
+    TimeOfDay initial,
+    void Function(TimeOfDay) onPicked,
+  ) async {
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null) {
+      onPicked(picked);
+    }
   }
 }
 

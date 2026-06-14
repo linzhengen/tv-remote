@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tv_remote/app.dart';
+import 'package:tv_remote/domain/models/time_restriction.dart';
 import 'package:tv_remote/presentation/providers/tv_provider.dart';
 
 import 'mock_tv_controller.dart';
@@ -23,6 +24,7 @@ Widget buildTestApp() {
         return (_) => _mock!;
       }),
       // Prevent real SSDP network discovery
+      timeRestrictionProvider.overrideWith((ref) async => TimeRestriction.defaults()),
       scanNetworkProvider.overrideWith((ref) => () async {}),
       // Prevent SharedPreferences read (returns empty)
       savedDevicesProvider.overrideWith((ref) async => []),

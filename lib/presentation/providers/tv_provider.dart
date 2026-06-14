@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/tv_device_info.dart';
 import '../../domain/models/remote_command.dart';
+import '../../domain/models/time_restriction.dart';
 import '../../domain/interfaces/tv_controller.dart';
 import '../../data/manufacturers/panasonic/panasonic_controller.dart';
 import '../../core/discovery/ssdp_discovery.dart';
@@ -29,6 +30,30 @@ TvController _createController(TvBrand brand) {
 final wolMacAddressProvider = FutureProvider<String?>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   return prefs.getString('wol_mac_address');
+});
+
+/// Time restriction settings for parental controls.
+final timeRestrictionProvider = FutureProvider<TimeRestriction>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  final json = prefs.getString('time_restriction');
+  if (json == null) return TimeRestriction.defaults();
+  try {
+    return TimeRestriction.fromJson(
+        jsonDecode(json) as Map<String, dynamic>);
+  } catch (_) {
+    return TimeRestriction.defaults();
+  }
+});
+
+/// Saves time restriction settings.
+final saveTimeRestrictionProvider =
+    Provider<Future<void> Function(TimeRestriction)>((ref) {
+  return (TimeRestriction restriction) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+        'time_restriction', jsonEncode(restriction.toJson()));
+    ref.invalidate(timeRestrictionProvider);
+  };
 });
 
 /// Manages the list of saved devices.
@@ -156,6 +181,13 @@ final sendCommandProvider = Provider<Future<String?> Function(RemoteCommand)>((
       final controller = ref.read(tvControllerProvider);
       if (controller == null) {
         return 'Not connected to a TV';
+      }
+      // Time restriction gate: block all commands except power
+      final restriction = ref.read(timeRestrictionProvider).valueOrNull;
+      if (restriction != null && !restriction.isAllowed(DateTime.now())) {
+        if (command != RemoteCommand.power) {
+          return 'TV viewing is restricted at this time';
+        }
       }
       await controller.sendCommand(command);
       return null; // success
